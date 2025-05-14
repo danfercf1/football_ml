@@ -1,0 +1,6 @@
+pycaret[full]
+pymongo
+python-dotenv
+Flask
+celery
+redis

@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  # Redis service for Celery broker and result backend
+  redis:
+    image: redis:latest
+    container_name: football_ml_redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    networks:
+      - football_ml_network
+
+  # You can add these services later if you wish to containerize the entire app:
+  # web:
+  #   build: .
+  #   ports:
+  #     - "5000:5000"
+  #   depends_on:
+  #     - redis
+  #   env_file: .env
+  #   networks:
+  #     - football_ml_network
+  
+  # celery_worker:
+  #   build: .
+  #   depends_on:
+  #     - redis
+  #   env_file: .env
+  #   command: celery -A celery_worker worker --loglevel=info
+  #   networks:
+  #     - football_ml_network
+
+networks:
+  football_ml_network:
+
+volumes:
+  redis_data:
