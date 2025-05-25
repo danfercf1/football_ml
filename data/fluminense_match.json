@@ -1,0 +1,557 @@
+{
+    "_id": "6824fcdee9825a14e0df8b15",
+    "match": "Fluminense FC vs Unión Española",
+    "homeTeam": "Fluminense FC",
+    "awayTeam": "Unión Española",
+    "homeLogo": "https://cdn.footystats.org/img/teams/brazil-fluminense-fc.png",
+    "awayLogo": "https://cdn.footystats.org/img/teams/chile-union-espanola.png",
+    "country": "South America",
+    "league": "Copa Sudamericana",
+    "date": 1747260000000,
+    "gameDate": "Wednesday May 14, 2025 - 6:00 PM (America/Santo_Domingo time)",
+    "homeForm": "1.7",
+    "awayForm": "1.1",
+    "homeFormLast5": "L,W,W,L,L",
+    "awayFormLast5": "D,L,L,L,W",
+    "url": "https://footystats.org/south-america/fluminense-fc-vs-union-espanola-h2h-stats",
+    "isPastMatch": false,
+    "isFinalResult": false,
+    "hasScore": false,
+    "h2hStats": {
+        "h2hMatchesPlayed": 1,
+        "h2hHomeWinPercentage": 0,
+        "h2hAwayWinPercentage": 0,
+        "h2hDescription": "Fluminense vs Unión Española's head to head record shows that in the previous 1 meetings, Fluminense has won 0 times, Unión Española has won 0 times, and 1 ended in a draw. Fluminense scored 1 goals and Unión Española scored 1 goals in these matches.",
+        "h2hOver1_5": 100,
+        "h2hOver2_5": 0,
+        "h2hOver3_5": 0,
+        "h2hBTTS": 100,
+        "h2hHomeCleanSheet": 0,
+        "h2hAwayCleanSheet": 0
+    },
+    "positionWarning": 2,
+    "predictionStats": {
+        "predictedOver1_5": 75,
+        "predictedOver2_5": 35,
+        "predictedBTTS": 45,
+        "avgTotalGoals": 2,
+        "avgCards": 4.24,
+        "avgCorners": 9.4,
+        "leagueAvgOver1_5": 71,
+        "leagueAvgOver2_5": 46,
+        "leagueAvgBTTS": 51,
+        "leagueAvgGoals": 2.49,
+        "leagueAvgCards": 4.88,
+        "leagueAvgCorners": 8.56,
+        "gptSummary": "When Fluminense welcomes Unión Española for this intriguing clash, the odds firmly tilt towards the Brazilian side. With win odds at 1.22, Fluminense appears poised to dominate, especially given their outstanding home win percentage of 80%. Their staggering home xG average of 2.29 underscores a potent attack that's tough to resist.Hold tight to those Over 1.5 Goals Odds at 1.20 – a portrayal of the expected goal-filled affair given the average goal tally of 3.22 per match between these two. A draw feels unlikely with odds of 5.80, while Unión Española's hopes rest on a daunting 11.00. However, their vulnerability away, reflected in a 75% loss rate, could see them struggle to keep pace.The goal-scoring script suggests a fruitful second half, backed by that prolific 78% 2nd Half Over 0.5 Goals statistic. Yet, the low BTTS Yes Odds of 2.38 indicates a leaning towards a one-sided scoreboard.Corners? Expect Fluminense to command this statistic, supported by odds of 1.21 suggesting they've consistently been in charge. For more detailed insights, visit the comprehensive stats on both teams [here](https://footystats.org/south-america/fluminense-fc-vs-union-espanola-h2h-stats)."
+    },
+    "bestPrediction": {
+        "bestPrediction": "Over 1.5",
+        "confidence": {
+            "value": 75,
+            "leagueAverage": 71,
+            "difference": 4
+        }
+    },
+    "teamOverviews": {
+        "home": {
+            "teamName": "Fluminense FC",
+            "leaguePos": null,
+            "leaguePosTotal": null,
+            "recent": {
+                "wins": 5,
+                "draws": 2,
+                "losses": 3
+            },
+            "form": {
+                "overall": {
+                    "results": [
+                        "L",
+                        "W",
+                        "W",
+                        "L",
+                        "L"
+                    ],
+                    "ppg": 1.7
+                },
+                "home": {
+                    "results": [
+                        "W",
+                        "W",
+                        "D",
+                        "W",
+                        "W"
+                    ],
+                    "ppg": 2.6
+                },
+                "away": {
+                    "results": [
+                        "W",
+                        "D",
+                        "L",
+                        "L",
+                        "L"
+                    ],
+                    "ppg": 0.8
+                }
+            },
+            "stats": {
+                "winPercent": {
+                    "overall": "50%",
+                    "home": "80%",
+                    "away": "20%"
+                },
+                "avg": {
+                    "overall": "2.40",
+                    "home": "2.40",
+                    "away": "2.40"
+                },
+                "scored": {
+                    "overall": "1.50",
+                    "home": "2.00",
+                    "away": "1.00"
+                },
+                "conceded": {
+                    "overall": "0.90",
+                    "home": "0.40",
+                    "away": "1.40"
+                },
+                "btts": {
+                    "overall": "40%",
+                    "home": "40%",
+                    "away": "40%"
+                },
+                "cs": {
+                    "overall": "40%",
+                    "home": "60%",
+                    "away": "20%"
+                },
+                "fts": {
+                    "overall": "20%",
+                    "home": "0%",
+                    "away": "40%"
+                },
+                "xg": {
+                    "overall": "1.72",
+                    "home": "2.29",
+                    "away": "1.16"
+                },
+                "xga": {
+                    "overall": "1.22",
+                    "home": "0.83",
+                    "away": "1.61"
+                }
+            }
+        },
+        "away": {
+            "teamName": "Unión Española",
+            "leaguePos": null,
+            "leaguePosTotal": null,
+            "recent": {
+                "wins": 3,
+                "draws": 2,
+                "losses": 5
+            },
+            "form": {
+                "overall": {
+                    "results": [
+                        "D",
+                        "L",
+                        "L",
+                        "L",
+                        "W"
+                    ],
+                    "ppg": 1.1
+                },
+                "home": {
+                    "results": [
+                        "L",
+                        "W",
+                        "D",
+                        "L",
+                        "W"
+                    ],
+                    "ppg": 1.67
+                },
+                "away": {
+                    "results": [
+                        "D",
+                        "L",
+                        "L",
+                        "L"
+                    ],
+                    "ppg": 0.25
+                }
+            },
+            "stats": {
+                "winPercent": {
+                    "overall": "30%",
+                    "home": "50%",
+                    "away": "0%"
+                },
+                "avg": {
+                    "overall": "2.50",
+                    "home": "2.83",
+                    "away": "2.00"
+                },
+                "scored": {
+                    "overall": "1.30",
+                    "home": "1.83",
+                    "away": "0.50"
+                },
+                "conceded": {
+                    "overall": "1.20",
+                    "home": "1.00",
+                    "away": "1.50"
+                },
+                "btts": {
+                    "overall": "50%",
+                    "home": "50%",
+                    "away": "50%"
+                },
+                "cs": {
+                    "overall": "10%",
+                    "home": "17%",
+                    "away": "0%"
+                },
+                "fts": {
+                    "overall": "40%",
+                    "home": "33%",
+                    "away": "50%"
+                },
+                "xg": {
+                    "overall": "1.94",
+                    "home": "1.96",
+                    "away": "1.92"
+                },
+                "xga": {
+                    "overall": "1.79",
+                    "home": "1.70",
+                    "away": "1.92"
+                }
+            }
+        }
+    },
+    "homePosition": 12,
+    "awayPosition": 28,
+    "currentForm": {
+        "homeCurrentForm": [
+            {
+                "homeTeam": "Fluminense",
+                "awayTeam": "Sport Recife",
+                "score": "2 - 1"
+            },
+            {
+                "homeTeam": "Fluminense",
+                "awayTeam": "Aparecidense",
+                "score": "1 - 0"
+            },
+            {
+                "homeTeam": "Fluminense",
+                "awayTeam": "Vitória",
+                "score": "1 - 1"
+            },
+            {
+                "homeTeam": "Fluminense",
+                "awayTeam": "Santos",
+                "score": "1 - 0"
+            },
+            {
+                "homeTeam": "Fluminense",
+                "awayTeam": "Gualberto Villarroel SJ",
+                "score": "5 - 0"
+            }
+        ],
+        "awayCurrentForm": [
+            {
+                "homeTeam": "Once Caldas",
+                "awayTeam": "Unión Española",
+                "score": "1 - 0"
+            },
+            {
+                "homeTeam": "Huachipato",
+                "awayTeam": "Unión Española",
+                "score": "2 - 1"
+            },
+            {
+                "homeTeam": "Audax Italiano",
+                "awayTeam": "Unión Española",
+                "score": "2 - 0"
+            },
+            {
+                "homeTeam": "Gualberto Villarroel SJ",
+                "awayTeam": "Unión Española",
+                "score": "1 - 1"
+            },
+            {
+                "homeTeam": "Deportes Iquique",
+                "awayTeam": "Unión Española",
+                "score": "0 - 4"
+            }
+        ]
+    },
+    "odds": {
+        "moneyLineOdds": {
+            "Home": {
+                "stats": "50%",
+                "odds": {
+                    "Pncl": "1.25",
+                    "CloudBet": "1.24",
+                    "bet365": "1.29",
+                    "Betfair": "1.16",
+                    "Ladbrokes": "1.25",
+                    "bwin": "1.26",
+                    "Dafabet": "1.27",
+                    "WilliamHill": "1.25",
+                    "1xbet": "1.26",
+                    "10Bet": "1.26",
+                    "Unibet": "1.23",
+                    "888Sport": "1.25",
+                    "Marathon": "1.26",
+                    "Tipico": "1.22",
+                    "Sbo": "1.26",
+                    "Cashpoint": "1.25",
+                    "Interwetten": "1.25",
+                    "188Bet": "1.23"
+                }
+            },
+            "Draw": {
+                "stats": "20%",
+                "odds": {
+                    "Pncl": "5.79",
+                    "CloudBet": "5.72",
+                    "bet365": "5.25",
+                    "Betfair": "5.50",
+                    "Ladbrokes": "5.00",
+                    "bwin": "5.50",
+                    "Dafabet": "5.80",
+                    "WilliamHill": "5.50",
+                    "1xbet": "5.65",
+                    "10Bet": "5.30",
+                    "Unibet": "5.75",
+                    "888Sport": "5.00",
+                    "Marathon": "5.55",
+                    "Tipico": "5.70",
+                    "Sbo": "5.10",
+                    "Cashpoint": "5.50",
+                    "Interwetten": "5.25",
+                    "188Bet": "5.00"
+                }
+            },
+            "Away": {
+                "stats": "30%",
+                "odds": {
+                    "Pncl": "11.97",
+                    "CloudBet": "11.83",
+                    "bet365": "13.00",
+                    "Betfair": "12.00",
+                    "Ladbrokes": "9.50",
+                    "bwin": "11.00",
+                    "Dafabet": "11.00",
+                    "WilliamHill": "10.00",
+                    "1xbet": "11.10",
+                    "10Bet": "12.50",
+                    "Unibet": "11.50",
+                    "888Sport": "10.00",
+                    "Marathon": "11.00",
+                    "Tipico": "11.00",
+                    "Sbo": "8.60",
+                    "Cashpoint": "10.73",
+                    "Interwetten": "11.00",
+                    "188Bet": "8.80"
+                }
+            }
+        },
+        "overUnderOdds": {
+            "over": {
+                "0.5": {
+                    "stats": "100%",
+                    "odds": {
+                        "10Bet": "1.04",
+                        "Betfair": "1.01",
+                        "888Sport": "1.04",
+                        "Tipico": "1.02"
+                    }
+                },
+                "1.5": {
+                    "stats": "75%",
+                    "odds": {
+                        "10Bet": "1.22",
+                        "Betfair": "1.20",
+                        "888Sport": "1.22",
+                        "Marathon": "1.18",
+                        "Tipico": "1.16"
+                    }
+                },
+                "2.5": {
+                    "stats": "35%",
+                    "odds": {
+                        "bet365": "1.70",
+                        "Ladbrokes": "1.67",
+                        "bwin": "1.66",
+                        "10Bet": "1.70",
+                        "Unibet": "1.65",
+                        "Betfair": "1.67",
+                        "888Sport": "1.67",
+                        "Marathon": "1.70",
+                        "Tipico": "1.65",
+                        "Cashpoint": "1.69"
+                    }
+                }
+            },
+            "under": {
+                "0.5": {
+                    "stats": "0%",
+                    "odds": {
+                        "10Bet": "10.00",
+                        "Betfair": "15.00",
+                        "888Sport": "13.00",
+                        "Tipico": "12.00"
+                    }
+                },
+                "1.5": {
+                    "stats": "25%",
+                    "odds": {
+                        "10Bet": "4.20",
+                        "Betfair": "4.50",
+                        "888Sport": "4.00",
+                        "Marathon": "3.88",
+                        "Tipico": "4.40"
+                    }
+                },
+                "2.5": {
+                    "stats": "65%",
+                    "odds": {
+                        "bet365": "2.10",
+                        "Ladbrokes": "2.1",
+                        "bwin": "2.05",
+                        "10Bet": "2.10",
+                        "Unibet": "2.12",
+                        "Betfair": "2.15",
+                        "888Sport": "2.10",
+                        "Marathon": "2.11",
+                        "Tipico": "2.10",
+                        "Cashpoint": "2.1"
+                    }
+                }
+            }
+        },
+        "bothTeamsToScoreOdds": {
+            "Yes": {
+                "stats": "45%",
+                "odds": {
+                    "bet365": "2.25",
+                    "10Bet": "2.15",
+                    "WilliamHill": "2.20",
+                    "Unibet": "2.18",
+                    "Betfair": "2.25",
+                    "1xbet": "2.21",
+                    "888Sport": "2.20",
+                    "Marathon": "2.21",
+                    "Tipico": "2.20",
+                    "Pncl": "2.28"
+                }
+            },
+            "No": {
+                "stats": "55%",
+                "odds": {
+                    "bet365": "1.57",
+                    "10Bet": "1.62",
+                    "WilliamHill": "1.62",
+                    "Unibet": "1.60",
+                    "Betfair": "1.62",
+                    "1xbet": "1.63",
+                    "888Sport": "1.62",
+                    "Marathon": "1.59",
+                    "Tipico": "1.60",
+                    "Pncl": "1.63"
+                }
+            }
+        }
+    },
+    "shotsStats": {
+        "teams": {
+            "Fluminense FC": {
+                "basic": {
+                    "shots_per_match": "14.80",
+                    "shots_conversion_rate": "10%",
+                    "shots_per_goal_scored": "9.87"
+                }
+            },
+            "Unión Española": {
+                "basic": {
+                    "shots_per_match": "17.70",
+                    "shots_conversion_rate": "7%",
+                    "shots_per_goal_scored": "13.62"
+                }
+            }
+        }
+    },
+    "liveStats": {
+        "score": "0 - 0",
+        "minute": "21",
+        "goals": [],
+        "stats": {
+            "Shots Total": {
+                "home": "4",
+                "away": "2"
+            },
+            "Shots On Target": {
+                "home": "1",
+                "away": "1"
+            },
+            "Shots Off Target": {
+                "home": "4",
+                "away": "1"
+            },
+            "Tackles": {
+                "home": "4",
+                "away": "1"
+            },
+            "Fouls": {
+                "home": "1",
+                "away": "3"
+            },
+            "Corners": {
+                "home": "4",
+                "away": "0"
+            },
+            "Penalties": {
+                "home": "0",
+                "away": "0"
+            },
+            "Offsides": {
+                "home": "0",
+                "away": "1"
+            },
+            "Substitution": {
+                "home": "1",
+                "away": "0"
+            },
+            "Possession": {
+                "home": "65",
+                "away": "35"
+            },
+            "Injuries": {
+                "home": "1",
+                "away": "1"
+            },
+            "Attacks": {
+                "home": "21",
+                "away": "16"
+            },
+            "Dangerous Attacks": {
+                "home": "18",
+                "away": "5"
+            }
+        },
+        "teams": {
+            "home": "Fluminense",
+            "away": "Unión Española"
+        },
+        "isLive": true,
+        "isCompleted": false,
+        "lastUpdated": "2025-05-14T22:23:07.680Z",
+        "updatedAt": "2025-05-14T22:23:07.680Z"
+    }
+}

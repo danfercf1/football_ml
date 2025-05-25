@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:6.0
+    container_name: football_mongo
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_DATABASE=football_analysis
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - football_network
+
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: football_rabbitmq
+    ports:
+      - "5672:5672"   # AMQP protocol port
+      - "15672:15672" # Management UI port
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - football_network
+
+  # Optional: Include a simple viewer for the bet signals
+  bet_viewer:
+    image: python:3.10-slim
+    container_name: football_bet_viewer
+    depends_on:
+      - rabbitmq
+    volumes:
+      - ./scripts:/scripts
+    working_dir: /scripts
+    command: >
+      sh -c "pip install pika && python -u bet_viewer.py"
+    networks:
+      - football_network
+
+networks:
+  football_network:
+    driver: bridge
+
+volumes:
+  mongo_data:
+  rabbitmq_data:
