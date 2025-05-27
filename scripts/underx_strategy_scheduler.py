@@ -16,6 +16,7 @@ sys.path.insert(0, project_root)
 
 from src.underx_match_handler import get_underx_match_handler
 from scripts.under_x_inplay import UnderXInPlayStrategy
+from src.notification_service import NotificationService
 
 # Configure logging
 logging.basicConfig(
@@ -37,6 +38,7 @@ def analyze_live_matches():
         # Get match handler and strategy
         match_handler = get_underx_match_handler()
         strategy = UnderXInPlayStrategy()
+        notification_service = NotificationService()
         
         # Get live matches data
         live_matches = match_handler.get_live_match_data()
@@ -52,6 +54,12 @@ def analyze_live_matches():
         
         # Count suitable matches
         suitable_count = sum(1 for result in results if result.get("is_suitable", False))
+        
+        # If suitable matches found, send push notification
+        if suitable_count > 0:
+            suitable_matches = [result for result in results if result.get("is_suitable", False)]
+            notification_service.send_suitable_matches_notification(suitable_matches, suitable_count)
+            logger.info(f"Push notification sent for {suitable_count} suitable matches")
         
         logger.info("-" * 80)
         logger.info(f"Analysis complete: {suitable_count} out of {len(results)} matches are suitable for betting")

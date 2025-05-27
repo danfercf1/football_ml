@@ -8,3 +8,4 @@ python-dotenv==1.0.0
 requests
 schedule==1.2.0
 redis==4.5.5
+firebase-admin==6.2.0

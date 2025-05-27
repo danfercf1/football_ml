@@ -177,3 +177,5 @@ cython_debug/
 *.pyc
 *.pyo
 *.pyd
+
+config/firebase-service-account.json
