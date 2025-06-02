@@ -23,6 +23,8 @@ class RabbitMQPublisher:
         self.connection = None
         self.channel = None
         self.connected = False
+        # Store default queue name from config
+        self.queue_name = config.RABBITMQ_QUEUE
         self._connect()
     
     def _connect(self) -> bool:
@@ -118,6 +120,61 @@ class RabbitMQPublisher:
             logger.error(f"Error preparing bet signal for publication: {e}")
             return False
     
+    def publish_message(self, queue_name: str, message: Dict[str, Any], routing_key: str = None) -> bool:
+        """
+        General purpose method to publish a message to any RabbitMQ queue.
+        
+        Args:
+            queue_name: The name of the queue to publish to
+            message: Dictionary containing the message data
+            routing_key: The routing key (defaults to queue_name if not specified)
+            
+        Returns:
+            True if message was published successfully, False otherwise
+        """
+        if routing_key is None:
+            routing_key = queue_name
+            
+        if not self.connected:
+            if not self._connect():
+                logger.error(f"Cannot publish message to {queue_name}: not connected to RabbitMQ")
+                return False
+        
+        try:
+            # Declare the queue (creates it if it doesn't exist)
+            self.channel.queue_declare(
+                queue=queue_name,
+                durable=True  # Queue survives broker restarts
+            )
+            
+            # Convert data to JSON if it's not already a string
+            if isinstance(message, dict):
+                message_body = json.dumps(message)
+            else:
+                message_body = str(message)
+            
+            # Publish message
+            self.channel.basic_publish(
+                exchange='',
+                routing_key=routing_key,
+                body=message_body,
+                properties=pika.BasicProperties(
+                    delivery_mode=2,  # Make message persistent
+                    content_type='application/json'
+                )
+            )
+            
+            logger.info(f"Published message to queue: {queue_name}")
+            return True
+            
+        except AMQPError as e:
+            logger.error(f"Failed to publish message to {queue_name}: {e}")
+            self.connected = False
+            return False
+        except Exception as e:
+            logger.error(f"Error preparing message for publication: {e}")
+            return False
+    
     def publish_cashout_signal(self, cashout_signal: Dict[str, Any]) -> bool:
         """
         Publish a cashout signal to the RabbitMQ queue.
@@ -129,31 +186,19 @@ class RabbitMQPublisher:
             True if successful, False otherwise
         """
         try:
-            if not self.connection or not self.channel:
-                self._connect()
-                if not self.connection or not self.channel:
-                    logger.error("Failed to re-establish RabbitMQ connection for cashout signal")
-                    return False
+            # Use betfair_bets queue for cashout signals
+            target_queue = "betfair_bets"
             
             # Add emergency flag for routing priority
             if cashout_signal.get("reason") == "goal_canceled_emergency":
                 cashout_signal["emergency"] = True
             
-            # Convert to JSON and publish
-            message = json.dumps(cashout_signal)
-            self.channel.basic_publish(
-                exchange='',
-                routing_key=self.queue_name,
-                body=message,
-                properties=pika.BasicProperties(
-                    delivery_mode=2,  # Make message persistent
-                    priority=9,  # High priority for cashout signals
-                    content_type='application/json'
-                )
+            # Use the generic publish_message method
+            return self.publish_message(
+                queue_name=target_queue,
+                message=cashout_signal,
+                routing_key=target_queue
             )
-            
-            logger.info(f"Published cashout signal for match {cashout_signal.get('match_id')}")
-            return True
             
         except Exception as e:
             logger.error(f"Error publishing cashout signal: {e}")

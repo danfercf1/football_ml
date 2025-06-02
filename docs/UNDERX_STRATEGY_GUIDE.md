@@ -78,6 +78,73 @@ Analysis complete: 1 out of 3 matches are suitable for betting
 ===============================================================================
 ```
 
+## High-Risk Game Monitoring & Emergency Cashout
+
+After a bet is placed, the system continues to monitor the match for high-risk scenarios that may require an emergency cashout. This is handled by a dedicated monitoring script.
+
+### How It Works
+
+- **Skip Already Cashed Out Games:** The monitor checks MongoDB and skips games where the `cashout` property is `true`.
+- **Emergency Cashout (2 goals before 70th minute):** If 2 goals are scored after the bet and before the 70th minute, an emergency cashout signal is sent to RabbitMQ after a 2-minute delay.
+- **High-Risk Tracking (2 goals between 70 and 82):** If 2 goals are scored after the bet between the 70th and 82nd minute, the game is tracked as high risk in Redis.
+- **Third Goal Before 82:** If a third goal is scored before the 82nd minute, a cashout signal is sent.
+- **Third Goal After 82 but before 85:** If a third goal is scored after the 82nd but before the 85th minute, a cashout signal is sent.
+- **Continued Monitoring:** The script continues to monitor high-risk games for further goals and triggers cashout as needed.
+
+### Running the High-Risk Monitor
+
+Start the monitor in a separate process or terminal:
+
+```bash
+cd /home/daniel/Projects/football_ml
+python scripts/run_high_risk_monitor.py
+```
+
+This script will call the main high-risk monitoring logic and should be kept running alongside the main strategy scheduler.
+
+### Integration
+
+- The monitor script interacts with Redis and MongoDB to track and manage high-risk games.
+- Emergency cashout signals are sent to RabbitMQ for immediate action.
+
+## Odds Update Monitoring
+
+To maximize bet success, the system continuously monitors odds for active bet games and requests updated information from bookmakers through a dedicated RabbitMQ queue.
+
+### How Odds Monitoring Works
+
+- **Live Bet Identification:** Every minute, the system checks Redis and MongoDB to identify matches with active bets
+- **Skip Already Cashed Out Games:** The monitor skips games where the `cashout` property is `true`
+- **Request Odds Updates:** For each active bet game, it sends a request to the `betfair_bets` RabbitMQ queue
+- **Message Format:** Requests are sent in a standardized JSON format containing the match ID and type:
+
+  ```json
+  {
+    "type": "get_odds",
+    "matchType": "underXmatch",
+    "matchId": "68336ebaeddf24a76ec32931"
+  }
+  ```
+
+- **Real-time Updates:** The betting service processes these requests to provide fresh odds data for better cashout decisions
+
+### Running the Odds Monitor
+
+Start the odds monitor in a separate process or terminal:
+
+```bash
+cd /home/daniel/Projects/football_ml
+python scripts/run_odds_monitor.py
+```
+
+This script runs the odds monitoring functionality and should be kept running alongside the main strategy scheduler and high-risk monitor.
+
+### Odds Monitor Integration
+
+- The odds monitor connects to RabbitMQ to send update requests
+- The external betting service processes these requests and updates odds in MongoDB
+- Updated odds are used for cashout decisions and profit calculations
+
 ## Advanced Setup
 
 ### Running as System Services
@@ -126,6 +193,112 @@ sudo systemctl enable underx-cron.service
 sudo systemctl start underx-cron.service
 sudo systemctl enable underx-strategy.service
 sudo systemctl start underx-strategy.service
+```
+
+## Machine Learning Model Setup
+
+The UnderX strategy includes a machine learning component that can enhance the rule-based betting decisions. Here's how to set it up:
+
+### 1. Collect Historical Match Data
+
+The ML model learns from historical betting outcomes. It requires matches where:
+
+- The `bet` property is set to `true` (matches where the strategy placed a bet)
+- The `profitLoss` property indicates the outcome (`profitLoss > 0` for successful bets)
+
+The data is stored in the `underxmatches` collection in MongoDB.
+
+### 2. Train the ML Model
+
+You can train the ML model using the provided MLPredictor class. Here's how to train it manually:
+
+```python
+from src.betting_rules import get_ml_predictor
+
+# Get the ML predictor instance
+ml_predictor = get_ml_predictor()
+
+# Train the model (this reads data from MongoDB)
+success = ml_predictor.train_model(save_model=True)
+
+if success:
+    print("Model trained and saved successfully!")
+else:
+    print("Model training failed.")
+```
+
+Or use the command-line script:
+
+```bash
+cd /home/daniel/Projects/football_ml
+python scripts/train_ml_model.py
+```
+
+### 3. Model Training Details
+
+The training process:
+
+1. Queries the `underxmatches` collection for matches with `bet: true`
+2. Extracts features from each match, including:
+   - Match time
+   - Current score
+   - Team statistics
+   - Shots, corners, and other match stats
+3. Labels matches as successful (1) if `profitLoss > 0`, or unsuccessful (0) if `profitLoss < 0`
+4. Trains a RandomForest classifier with balanced class weights
+5. Evaluates model performance and saves the model to disk
+
+### 4. Scheduled Retraining
+
+As you collect more betting data, regularly retrain the model to improve its performance. Set up a weekly cron job:
+
+```bash
+# Add to crontab
+0 2 * * MON cd /home/daniel/Projects/football_ml && python scripts/train_ml_model.py >> logs/ml_training.log 2>&1
+```
+
+Make the script executable:
+
+```bash
+chmod +x scripts/train_ml_model.py
+```
+
+### 5. ML Model Integration
+
+The ML model integrates with the rule-based system in these ways:
+
+1. **Validation**: ML validates rule-based decisions and can override them if it strongly disagrees
+2. **Risk Assessment**: ML predictions can adjust stake sizes based on confidence levels
+3. **Feature Importance**: The model can help identify which factors most strongly influence successful bets
+
+To view ML feature importance:
+
+```python
+from src.betting_rules import get_ml_predictor
+import matplotlib.pyplot as plt
+import numpy as np
+
+ml_predictor = get_ml_predictor()
+model = ml_predictor.model
+
+if model is not None and hasattr(model, 'feature_importances_'):
+    # Define feature names (must match the feature extraction order)
+    feature_names = [
+        'minute', 'home_goals', 'away_goals', 'total_goals', 'goal_diff',
+        'home_avg_goals', 'away_avg_goals', 'home_shots', 'away_shots',
+        'home_shots_on_target', 'away_shots_on_target', 'home_corners',
+        'away_corners', 'home_fouls', 'away_fouls', 'home_dangerous_attacks',
+        'away_dangerous_attacks', 'goals_per_minute', 'shots_per_minute',
+        'shots_on_target_per_minute'
+    ]
+    
+    # Sort features by importance
+    indices = np.argsort(model.feature_importances_)[::-1]
+    
+    # Print feature ranking
+    print("Feature ranking:")
+    for f in range(min(10, len(feature_names))):
+        print(f"{f+1}. {feature_names[indices[f]]}: {model.feature_importances_[indices[f]]:.4f}")
 ```
 
 ## Troubleshooting

@@ -64,6 +64,15 @@ class UnderXInPlayStrategy:
         Returns:
             Analysis results dictionary
         """
+        # Skip games where a bet was already placed
+        if match_doc.get("bet", False):
+            logger.info(f"Skipping match {match_doc.get('match_id', match_doc.get('_id', 'unknown'))}: bet already placed.")
+            return {
+                "match_id": match_doc.get("match_id", match_doc.get("_id", "unknown")),
+                "skipped": True,
+                "reason": "bet already placed"
+            }
+        
         # Save original team names before processing
         original_home_team = match_doc.get("home_team", "")
         original_away_team = match_doc.get("away_team", "")
@@ -195,38 +204,16 @@ class UnderXInPlayStrategy:
             
             # Apply the new betting rules system
             try:
-                # Force dictionary-based rules for now
-                rules = [
-                    {
-                        "rule_type": "goals",
-                        "active": True,
-                        "odds": {
-                            "min": 1.01,
-                            "max": 1.04
-                        },
-                        "min_goals": 1,
-                        "max_goals": 3,
-                        "min_goal_line_buffer": 2.5
-                    },
-                    {
-                        "rule_type": "stake",
-                        "active": True,
-                        "stake": 0.50,
-                        "stake_strategy": "fixed"
-                    },
-                    {
-                        "rule_type": "time",
-                        "active": True,
-                        "min_minute": 52,
-                        "max_minute": 61
-                    }
-                ]
+                # Call default_betting_rules() to get the actual rules list
+                rules = default_betting_rules()
                 rule_results = evaluate_betting_rules(enhanced_match_data, rules)
                 
                 # Combine legacy and new rule system results
                 is_suitable = is_suitable_legacy and rule_results["is_suitable"]
             except Exception as e:
                 logger.error(f"Error applying betting rules: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
                 rule_results = {"is_suitable": False, "rules_passed": [], "rules_failed": []}
                 is_suitable = is_suitable_legacy
             
@@ -317,6 +304,15 @@ class UnderXInPlayStrategy:
                     # Track the bet signal in Redis for later goal cancelation checks
                     match_id = match_data.get("match_id", "unknown")
                     if match_id != "unknown":
+                        # Save the full result (including recommendation and all analysis) into Redis
+                        try:
+                            self.redis_tracker.track_bet(match_id, {
+                                "full_result": result,
+                                "timestamp": int(time.time())
+                            })
+                        except Exception as e:
+                            logger.error(f"Failed to save full result to Redis: {e}")
+                        # Optionally, still save the minimal bet signal for compatibility
                         self.track_bet_signal(
                             match_id, 
                             result["bet_signal"], 
@@ -494,6 +490,102 @@ class UnderXInPlayStrategy:
         if dangerous_rate > 1.5:
             risk_score += 1
         
+        # Factor 4: Shots analysis (new)
+        # Extract shots data from liveStats if available
+        live_stats = match_data.get("liveStats", {}).get("stats", {})
+        
+        # Get shots data with fallbacks to handle different data formats
+        home_shots_total = 0
+        away_shots_total = 0
+        home_shots_on_target = 0
+        away_shots_on_target = 0
+        
+        # Try to get from liveStats structure
+        if live_stats:
+            # Handle various possible key formats
+            for key_format in ["Shots Total", "shots_total", "shotsTotal", "shots"]:
+                if key_format in live_stats:
+                    try:
+                        home_shots_total = int(live_stats[key_format].get("home", "0"))
+                        away_shots_total = int(live_stats[key_format].get("away", "0"))
+                        break
+                    except (ValueError, TypeError, AttributeError):
+                        pass
+                        
+            for key_format in ["Shots On Target", "shots_on_target", "shotsOnTarget"]:
+                if key_format in live_stats:
+                    try:
+                        home_shots_on_target = int(live_stats[key_format].get("home", "0"))
+                        away_shots_on_target = int(live_stats[key_format].get("away", "0"))
+                        break
+                    except (ValueError, TypeError, AttributeError):
+                        pass
+        
+        # Fallback to direct keys
+        if home_shots_total == 0 and "home_shots" in match_data:
+            try:
+                home_shots_total = int(match_data.get("home_shots", 0))
+            except (ValueError, TypeError):
+                pass
+                
+        if away_shots_total == 0 and "away_shots" in match_data:
+            try:
+                away_shots_total = int(match_data.get("away_shots", 0))
+            except (ValueError, TypeError):
+                pass
+                
+        if home_shots_on_target == 0 and "home_shots_on_target" in match_data:
+            try:
+                home_shots_on_target = int(match_data.get("home_shots_on_target", 0))
+            except (ValueError, TypeError):
+                pass
+                
+        if away_shots_on_target == 0 and "away_shots_on_target" in match_data:
+            try:
+                away_shots_on_target = int(match_data.get("away_shots_on_target", 0))
+            except (ValueError, TypeError):
+                pass
+        
+        # Calculate total shots and on-target percentage
+        total_shots = home_shots_total + away_shots_total
+        total_shots_on_target = home_shots_on_target + away_shots_on_target
+        
+        # Only calculate accuracy if we have shots
+        shot_accuracy = 0
+        if total_shots > 0:
+            shot_accuracy = total_shots_on_target / total_shots
+        
+        # Risk assessment based on shots
+        if minute > 0:
+            # Calculate shots per minute
+            shots_per_minute = total_shots / max(1, minute)
+            shots_on_target_per_minute = total_shots_on_target / max(1, minute)
+            
+            # High shot volume increases risk
+            if shots_per_minute > 0.5:  # More than 1 shot every 2 minutes
+                if shot_accuracy > 0.5:  # Good accuracy
+                    risk_score += 2
+                else:
+                    risk_score += 1
+                    
+            # High shots on target is a strong risk factor
+            if shots_on_target_per_minute > 0.2:  # More than 1 shot on target every 5 minutes
+                risk_score += 2
+            elif shots_on_target_per_minute > 0.1:  # More than 1 shot on target every 10 minutes
+                risk_score += 1
+        
+        # Absolute numbers also matter
+        if total_shots_on_target >= 10:
+            risk_score += 2
+        elif total_shots_on_target >= 5:
+            risk_score += 1
+            
+        # Log shots data for transparency
+        logger.debug(f"Shots analysis - Home: {home_shots_total} ({home_shots_on_target} on target), " +
+                     f"Away: {away_shots_total} ({away_shots_on_target} on target)")
+        logger.debug(f"Total shots: {total_shots}, On target: {total_shots_on_target}, " +
+                     f"Accuracy: {shot_accuracy:.2f}")
+        
         # Clamp risk score between 0-10
         return max(0, min(10, risk_score))
     
@@ -601,6 +693,16 @@ class UnderXInPlayStrategy:
         Returns:
             Analysis results dictionary
         """
+        # Skip matches that already have bets placed
+        if match_data.get("bet") is True:
+            match_id = match_data.get("_id", "unknown")
+            logger.info(f"Skipping match {match_id}: bet already placed")
+            return {
+                "match_id": str(match_id),
+                "skipped": True,
+                "reason": "bet already placed"
+            }
+            
         # Extract and format the relevant data for analysis
         try:
             live_stats = match_data.get("liveStats", {})
@@ -734,36 +836,50 @@ class UnderXInPlayStrategy:
                     odds_data = match_data.get("odds", {})
                     simplified_odds = {}
                     
-                    # If there's an overUnderOdds structure, extract under values directly
-                    if (isinstance(odds_data, dict) and "overUnderOdds" in odds_data 
-                            and "under" in odds_data["overUnderOdds"]
-                            and isinstance(odds_data["overUnderOdds"]["under"], dict)):  # Ensure it's a dict
+                    # Make sure odds_data is not None before proceeding
+                    if odds_data is not None:
+                        # If there's an overUnderOdds structure, extract under values directly
+                        if (isinstance(odds_data, dict) and 
+                            "overUnderOdds" in odds_data and
+                            odds_data["overUnderOdds"] is not None and
+                            "under" in odds_data["overUnderOdds"] and
+                            odds_data["overUnderOdds"]["under"] is not None and
+                            isinstance(odds_data["overUnderOdds"]["under"], dict)):  # Ensure it's a dict
+                            
+                            under_odds = odds_data["overUnderOdds"]["under"]
+                            
+                            # Now safe to iterate since we've verified it's a dictionary
+                            for line_str, odds_info in under_odds.items():
+                                try:
+                                    if isinstance(odds_info, dict) and "odds" in odds_info and odds_info["odds"] is not None:  # Additional check
+                                        best_odd = 0
+                                        for bookie, odd_value in odds_info["odds"].items():
+                                            try:
+                                                odd = float(odd_value)
+                                                best_odd = max(best_odd, odd)
+                                            except (ValueError, TypeError):
+                                                pass
+                                        
+                                        if best_odd > 0:
+                                            line = float(line_str) if '.' in line_str else float(f"{line_str}.0")
+                                            market_key = f"under_{line}"
+                                            simplified_odds[market_key] = best_odd
+                                except Exception as e:
+                                    logger.debug(f"Error processing odds line {line_str}: {e}")
+                                    continue
                         
-                        under_odds = odds_data["overUnderOdds"]["under"]
-                        
-                        # Now safe to iterate since we've verified it's a dictionary
-                        for line_str, odds_info in under_odds.items():
-                            try:
-                                if isinstance(odds_info, dict) and "odds" in odds_info:  # Additional check
-                                    best_odd = 0
-                                    for bookie, odd_value in odds_info["odds"].items():
-                                        try:
-                                            odd = float(odd_value)
-                                            best_odd = max(best_odd, odd)
-                                        except (ValueError, TypeError):
-                                            pass
-                                    
-                                    if best_odd > 0:
-                                        line = float(line_str) if '.' in line_str else float(f"{line_str}.0")
-                                        market_key = f"under_{line}"
-                                        simplified_odds[market_key] = best_odd
-                            except Exception as e:
-                                logger.debug(f"Error processing odds line {line_str}: {e}")
-                                continue
+                        # Try to also extract direct under odds if available
+                        for key, value in odds_data.items():
+                            if isinstance(key, str) and key.startswith("under_") and value is not None:
+                                try:
+                                    simplified_odds[key] = float(value)
+                                except (ValueError, TypeError):
+                                    pass
                     
                     formatted_match["odds"] = simplified_odds
                 except Exception as e:
                     logger.error(f"Error processing odds data: {e}")
+                    logger.debug(f"Odds data: {match_data.get('odds')}")
                     # Fallback to empty odds structure
                     formatted_match["odds"] = {}
             
@@ -786,11 +902,17 @@ class UnderXInPlayStrategy:
         """
         results = []
         suitable_matches = []
+        skipped_matches = []
         
         for match in matches:
             try:
                 result = self.process_live_match(match)
                 results.append(result)
+                
+                # Check if match was skipped due to existing bet
+                if result.get("skipped") and result.get("reason") == "bet already placed":
+                    skipped_matches.append(result)
+                    continue
                 
                 if result.get("is_suitable", False):
                     suitable_matches.append(result)
@@ -807,8 +929,11 @@ class UnderXInPlayStrategy:
             except Exception as e:
                 logger.error(f"Error analyzing match {match.get('_id')}: {e}")
         
-        # Summary of analysis
-        logger.info(f"Analyzed {len(matches)} live matches, found {len(suitable_matches)} suitable for betting")
+        # Summary of analysis with additional skipped matches info
+        logger.info(f"Analyzed {len(matches)} live matches:")
+        logger.info(f"  - Skipped due to existing bets: {len(skipped_matches)}")
+        logger.info(f"  - Found suitable for betting: {len(suitable_matches)}")
+        
         return results
 
     def track_bet_signal(self, match_id: str, bet_signal: Dict[str, Any], 

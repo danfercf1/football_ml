@@ -74,9 +74,9 @@ class RedisTracker:
             # Add timestamp for when bet was placed
             bet_details["timestamp"] = int(time.time())
             
-            # Store bet details in Redis
-            self.client.set(key, json.dumps(bet_details), ex=self.ttl)
-            logger.info(f"Tracked bet for match {match_id} in Redis")
+            # Set TTL to 60 minutes (3600 seconds)
+            self.client.set(key, json.dumps(bet_details), ex=3600)
+            logger.info(f"Tracked bet for match {match_id} in Redis (TTL: 60 minutes)")
             return True
         except Exception as e:
             logger.error(f"Error tracking bet in Redis: {e}")

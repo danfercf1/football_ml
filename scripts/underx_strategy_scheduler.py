@@ -52,17 +52,38 @@ def analyze_live_matches():
         # Analyze matches
         results = strategy.analyze_live_matches(live_matches)
         
-        # Count suitable matches
-        suitable_count = sum(1 for result in results if result.get("is_suitable", False))
+        # Count suitable matches and skipped matches
+        suitable_matches = [result for result in results if result.get("is_suitable", False)]
+        skipped_matches = [result for result in results if result.get("skipped") and result.get("reason") == "bet already placed"]
+        
+        suitable_count = len(suitable_matches)
+        skipped_count = len(skipped_matches)
+        
+        # Log information about skipped matches
+        if skipped_count > 0:
+            logger.info(f"Skipped {skipped_count} matches that already have bets placed:")
+            for match in skipped_matches[:5]:  # Show the first 5 at most to keep logs manageable
+                match_id = match.get("match_id", "unknown")
+                logger.info(f"  - Match ID: {match_id}")
+            if skipped_count > 5:
+                logger.info(f"  - ... and {skipped_count - 5} more")
         
         # If suitable matches found, send push notification
         if suitable_count > 0:
-            suitable_matches = [result for result in results if result.get("is_suitable", False)]
-            notification_service.send_suitable_matches_notification(suitable_matches, suitable_count)
+            logger.info(f"Sending notification for {suitable_count} matches...")
+            try:
+                result = notification_service.send_suitable_matches_notification(suitable_matches, suitable_count)
+                if result:
+                    logger.info("✅ Notification sent successfully")
+                else:
+                    logger.error("❌ Failed to send notification")
+                    logger.error("This could be due to invalid device tokens or Firebase configuration issues.")
+            except Exception as e:
+                logger.error(f"❌ Exception while sending notification: {e}")
             logger.info(f"Push notification sent for {suitable_count} suitable matches")
         
         logger.info("-" * 80)
-        logger.info(f"Analysis complete: {suitable_count} out of {len(results)} matches are suitable for betting")
+        logger.info(f"Analysis complete: {len(live_matches)} total, {skipped_count} skipped, {suitable_count} suitable for betting")
         logger.info("=" * 80)
         
         # Close connections

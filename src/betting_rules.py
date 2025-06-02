@@ -9,6 +9,8 @@ import logging
 from typing import Dict, Any, List, Optional
 from pymongo import MongoClient
 import src.config as config  # Import the config file that contains DB settings
+from src.mongo_handler import MongoHandler
+from src.ml_predictor import get_ml_predictor  # Import ML predictor from new file
 
 logger = logging.getLogger(__name__)
 
@@ -364,92 +366,175 @@ class TimeRule(BettingRule):
             return False
 
 
-class CompositeRule(BettingRule):
+class OddsRule(BettingRule):
     """
-    Rule that combines multiple conditions.
+    Rule for odds-related conditions.
     """
     
     def __init__(
         self,
         active: bool = True,
-        conditions: List[Dict[str, Any]] = None,
+        min_odds: float = 1.01,
+        max_odds: float = 1.04,
+        odds_type: str = "exact",
         **params
     ):
         """
-        Initialize a composite rule with multiple conditions.
+        Initialize an odds-related rule.
         
         Args:
             active: Whether the rule is active
-            conditions: List of condition dictionaries
+            min_odds: Minimum acceptable odds
+            max_odds: Maximum acceptable odds
+            odds_type: Type of odds to check (exact, under, over)
             **params: Additional parameters
         """
-        super().__init__("composite", active)
-        self.conditions = conditions or []
+        super().__init__("odds", active)
+        self.params.update({
+            "min": min_odds,
+            "max": max_odds,
+            "odds_type": odds_type
+        })
         self.params.update(params)
     
     def evaluate(self, match_data: Dict[str, Any]) -> bool:
         """
-        Evaluate if all conditions in the composite rule are met.
+        Evaluate if the odds-related conditions are met.
         
         Args:
             match_data: Match data dictionary
             
         Returns:
-            True if all conditions are met, False otherwise
+            True if conditions are met, False otherwise
         """
-        if not self.active or not self.conditions:
+        if not self.active:
             return False
             
-        for condition in self.conditions:
-            cond_type = condition.get("type")
-            comparison = condition.get("comparison")
-            
-            if cond_type == "goals":
-                total_goals = self._get_total_goals(match_data)
-                value = condition.get("value", 0)
-                
-                if comparison == "<=" and not (total_goals <= value):
-                    return False
-                elif comparison == ">=" and not (total_goals >= value):
-                    return False
-                elif comparison == "<" and not (total_goals < value):
-                    return False
-                elif comparison == ">" and not (total_goals > value):
+        try:
+            # Check countries/leagues filters if specified
+            if "countries" in self.params and self.params["countries"]:
+                country = match_data.get("country")
+                if country not in self.params["countries"]:
                     return False
                     
-            elif cond_type == "time":
-                minute = match_data.get("minute", 0)
+            if "leagues" in self.params and self.params["leagues"]:
+                league = match_data.get("league")
+                if league not in self.params["leagues"]:
+                    return False
+            
+            # Extract odds from match data
+            odds_data = match_data.get("odds", {})
+            if not odds_data:
+                logger.warning("No odds data available for evaluation")
+                return False
                 
-                if comparison == "between":
-                    min_val = condition.get("min", 0)
-                    max_val = condition.get("max", 90)
-                    if not (min_val <= minute <= max_val):
-                        return False
-                elif comparison == "<=" and not (minute <= condition.get("value", 0)):
+            # Try to extract the appropriate odds based on the match state
+            score = match_data.get("score", "0 - 0")
+            try:
+                home_goals, away_goals = map(int, score.split(" - "))
+                total_goals = home_goals + away_goals
+                
+                # Look for under odds with a reasonable buffer
+                target_line = None
+                for possible_line in [f"{total_goals + 0.5}", f"{total_goals + 1.5}", f"{total_goals + 2.5}", f"{total_goals + 3.5}"]:
+                    if f"under_{possible_line}" in odds_data:
+                        target_line = possible_line
+                        break
+                
+                if not target_line:
                     return False
-                elif comparison == ">=" and not (minute >= condition.get("value", 0)):
+                    
+                odds_value = odds_data.get(f"under_{target_line}")
+                if not odds_value:
+                    # Try to extract from complex structure
+                    if "overUnderOdds" in odds_data and "under" in odds_data["overUnderOdds"]:
+                        under_odds = odds_data["overUnderOdds"]["under"]
+                        if target_line in under_odds and "odds" in under_odds[target_line]:
+                            # Get the best (highest) odds available
+                            best_odd = 0
+                            for bookie, odd in under_odds[target_line]["odds"].items():
+                                try:
+                                    odd_value = float(odd)
+                                    best_odd = max(best_odd, odd_value)
+                                except (ValueError, TypeError):
+                                    continue
+                            odds_value = best_odd
+                
+                # Check if odds are within the acceptable range
+                if not odds_value or not isinstance(odds_value, (int, float)):
                     return False
-        
-        # All conditions passed
-        return True
+                    
+                min_odds = self.params.get("min", 1.01)
+                max_odds = self.params.get("max", 2.0)
+                return min_odds <= odds_value <= max_odds
+                
+            except ValueError:
+                logger.error(f"Could not parse score: {score}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error evaluating OddsRule: {e}")
+            return False
+
+
+class DivisorRule(BettingRule):
+    """
+    Rule for divisor-related conditions.
+    """
     
-    def _get_total_goals(self, match_data: Dict[str, Any]) -> int:
+    def __init__(
+        self,
+        active: bool = True,
+        divisor: int = 8,
+        **params
+    ):
         """
-        Get the total goals from the match data.
+        Initialize a divisor-related rule.
+        
+        Args:
+            active: Whether the rule is active
+            divisor: The divisor value
+            **params: Additional parameters
+        """
+        super().__init__("divisor", active)
+        self.params.update({
+            "divisor": divisor
+        })
+        self.params.update(params)
+    
+    def evaluate(self, match_data: Dict[str, Any]) -> bool:
+        """
+        Evaluate if the divisor-related conditions are met.
         
         Args:
             match_data: Match data dictionary
             
         Returns:
-            Total number of goals
+            True if conditions are met, False otherwise
         """
-        score = match_data.get("score", "0 - 0")
+        if not self.active:
+            return False
+            
         try:
-            home_goals, away_goals = map(int, score.split(" - "))
-            return home_goals + away_goals
-        except ValueError:
-            logger.error(f"Could not parse score: {score}")
-            return 0
+            # Check countries/leagues filters if specified
+            if "countries" in self.params and self.params["countries"]:
+                country = match_data.get("country")
+                if country not in self.params["countries"]:
+                    return False
+                    
+            if "leagues" in self.params and self.params["leagues"]:
+                league = match_data.get("league")
+                if league not in self.params["leagues"]:
+                    return False
+            
+            # A divisor rule usually applies to stake calculations or risk assessments
+            # It doesn't necessarily filter out matches, but affects how they're handled
+            # So we return True by default
+            return True
+                
+        except Exception as e:
+            logger.error(f"Error evaluating DivisorRule: {e}")
+            return False
 
 
 def get_betting_rules_from_db() -> List[Dict[str, Any]]:
@@ -460,23 +545,18 @@ def get_betting_rules_from_db() -> List[Dict[str, Any]]:
         List of betting rule dictionaries from the database
     """
     try:
-        # MongoDB connection settings from config
-        mongo_uri = config.MONGO_URI if hasattr(config, 'MONGO_URI') else f"mongodb://{config.MONGO_HOST}:{config.MONGO_PORT}/"
-        mongo_db = config.MONGO_DB
+        # Create a MongoHandler instance
+        mongo_handler = MongoHandler()
         
         # Use 'bettingrules' collection specifically
-        mongo_collection = 'bettingrules'
-        
-        # Create a MongoDB client
-        client = MongoClient(mongo_uri)
-        
-        # Select the database and collection
-        db = client[mongo_db]
-        collection = db[mongo_collection]
+        collection = mongo_handler.db['bettingrules']
         
         # Find all active rules
         cursor = collection.find({"active": True})
         rules = list(cursor)
+        
+        # Close the connection
+        mongo_handler.close()
         
         # Log how many rules were retrieved
         logger.info(f"Retrieved {len(rules)} active betting rules from MongoDB")
@@ -629,7 +709,8 @@ def evaluate_betting_rules(match_data: Dict[str, Any], rules: List[Any]) -> Dict
         "rules_passed": [],
         "rules_failed": [],
         "stake": 0.0,
-        "stake_strategy": "none"
+        "stake_strategy": "none",
+        "divisor": None  # Store divisor value if applicable
     }
     
     # Check each rule
@@ -743,5 +824,46 @@ def evaluate_betting_rules(match_data: Dict[str, Any], rules: List[Any]) -> Dict
                 results["stake"] = rule.get("stake", 0.0)
                 results["stake_strategy"] = rule.get("stake_strategy", "fixed")
                 results["rules_passed"].append("stake")
+    
+    # Apply divisor to stake if applicable
+    if results["stake"] > 0 and results["divisor"]:
+        divisor = results["divisor"]
+        # Adjust stake based on divisor
+        if results["stake_strategy"] == "fixed":
+            # Convert to percentage of bankroll
+            results["stake"] /= divisor
+            results["stake_strategy"] = "percentage"
+    
+    # Add ML prediction to enhance the rule-based decision
+    try:
+        ml_predictor = get_ml_predictor()
+        ml_suitable, ml_confidence = ml_predictor.predict(match_data)
+        
+        # Add ML results to the overall results
+        results["ml_prediction"] = {
+            "is_suitable": ml_suitable,
+            "confidence": ml_confidence
+        }
+        
+        # Apply ML decision logic based on confidence levels
+        if results["is_suitable"] and not ml_suitable:
+            if ml_confidence < 0.3:  # ML is very confident this is not suitable
+                results["is_suitable"] = False
+                results["rules_failed"].append("ml_prediction")
+                logger.info(f"ML prediction overrode rule-based decision for match {results['match_id']}: Not suitable with {ml_confidence:.2f} confidence")
+            elif ml_confidence < 0.5:  # ML is somewhat confident this is not suitable
+                # Reduce stake but still consider suitable
+                results["stake"] *= ml_confidence  # Scale down stake based on confidence
+                logger.info(f"ML prediction reduced stake for match {results['match_id']} to {results['stake']:.2f}")
+        
+        # If rules say not suitable but ML is very confident it is
+        elif not results["is_suitable"] and ml_suitable and ml_confidence > 0.8:
+            results["is_suitable"] = True
+            results["rules_passed"].append("ml_prediction_override")
+            logger.info(f"ML prediction overrode rules for match {results['match_id']}: Suitable with {ml_confidence:.2f} confidence")
+            
+    except Exception as e:
+        logger.error(f"Error applying ML prediction: {e}")
+        # Don't let ML errors affect the overall decision
     
     return results

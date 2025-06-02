@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
 """
 Cron script to find live UnderX matches and store them in Redis.
+
+To set up a cron job with a virtual environment:
+1. crontab -e
+2. Add a line like:
+   */5 * * * * /home/daniel/Projects/football_ml/venv/bin/python /home/daniel/Projects/football_ml/scripts/cron_live_games.py >> /home/daniel/Projects/football_ml/logs/cron.log 2>&1
+   
+Replace /home/daniel/Projects/football_ml/venv with the actual path to your virtual environment.
 """
 import logging
 import sys

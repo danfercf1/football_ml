@@ -13,9 +13,8 @@ from src import config
 logger = logging.getLogger(__name__)
 
 # Redis constants
-LIVE_GAMES_KEY = config.LIVE_GAMES_KEY if hasattr(config, 'LIVE_GAMES_KEY') else "live_games:underXmatch"
+LIVE_GAMES_KEY = config.LIVE_GAMES_KEY if hasattr(config, 'LIVE_GAMES_KEY') else "live_games"
 REDIS_TTL = int(config.REDIS_TTL) if hasattr(config, 'REDIS_TTL') else 120
-
 
 class RedisHandler:
     """Handler for Redis operations related to football matches."""
@@ -47,7 +46,7 @@ class RedisHandler:
     
     def save_live_games(self, games: List[Dict[str, Any]]) -> bool:
         """
-        Save a list of live games to Redis.
+        Save a list of live games to Redis, with each game stored under its own key.
         
         Args:
             games: List of game objects with id, matchType, and timestamp
@@ -56,53 +55,64 @@ class RedisHandler:
             Boolean indicating success
         """
         try:
-            # Format each game to ensure it has exactly the required fields
-            formatted_games = []
+            # Track games saved
+            new_games_count = 0
+            updated_games_count = 0
+            
             for game in games:
-                # Ensure each game has only the required fields in the exact format
-                formatted_game = {
-                    "id": game["id"],
-                    "matchType": "underXmatch",
-                    "timestamp": int(game.get("timestamp", datetime.now().timestamp() * 1000))
-                }
-                formatted_games.append(formatted_game)
+                # Get the game ID - support both MongoDB _id and regular id
+                game_id = str(game.get("_id", game.get("id", "")))
+                if not game_id:
+                    logger.warning(f"Skipping game without ID: {game}")
+                    continue
                 
-            # Check if we already have data in Redis
-            existing_data_str = self.redis_client.get(LIVE_GAMES_KEY)
-            existing_games = []
-            
-            if existing_data_str:
-                try:
-                    existing_games = json.loads(existing_data_str)
-                    # Ensure we're working with a list
-                    if not isinstance(existing_games, list):
-                        existing_games = []
-                except json.JSONDecodeError:
-                    logger.warning(f"Invalid JSON in Redis for key {LIVE_GAMES_KEY}, resetting")
-                    existing_games = []
+                # Create the Redis key for this game
+                game_key = f"{LIVE_GAMES_KEY}:{game_id}"
                 
-            # Filter out games that already exist in Redis by ID
-            existing_ids = {game.get('id') for game in existing_games if 'id' in game}
-            new_games = [game for game in formatted_games if game['id'] not in existing_ids]
-            
-            if not new_games:
-                logger.debug("No new games to add to Redis")
-                return True
+                # Check if game already exists in Redis
+                existing_game_data = self.redis_client.get(game_key)
                 
-            # Combine existing and new games
-            combined_games = existing_games + new_games
+                # Calculate game end time (start time + 120 minutes)
+                game_date = int(game.get("date", datetime.now().timestamp() * 1000)) / 1000  # Convert ms to seconds
+                game_end_time = game_date + (120 * 60)  # Add 120 minutes in seconds
+                current_time = datetime.now().timestamp()
+                ttl = max(int(game_end_time - current_time), 60)  # At least 60 seconds TTL
+                
+                # Add game TTL to the game data
+                formatted_game = game.copy()
+                formatted_game["id"] = game_id
+                formatted_game["ttl"] = ttl
+                formatted_game["end_time"] = game_end_time
+                formatted_game["matchType"] = "underXmatch"
+                if "timestamp" not in formatted_game:
+                    formatted_game["timestamp"] = int(game.get("date", datetime.now().timestamp() * 1000))
+                
+                # Format to JSON
+                json_data = json.dumps(formatted_game, separators=(',', ':'))
+                
+                # Check if game has changed or is new
+                should_save = True
+                if existing_game_data:
+                    try:
+                        existing_game = json.loads(existing_game_data)
+                        # Only update if important data has changed
+                        # Compare scores or other critical fields that would trigger an update
+                        if (existing_game.get("score") == formatted_game.get("score") and 
+                            existing_game.get("minute") == formatted_game.get("minute")):
+                            should_save = False
+                        else:
+                            updated_games_count += 1
+                    except json.JSONDecodeError:
+                        # Invalid JSON, overwrite it
+                        should_save = True
+                
+                # Save to Redis if new or changed
+                if should_save:
+                    self.redis_client.set(game_key, json_data, ex=ttl)
+                    if not existing_game_data:
+                        new_games_count += 1
             
-            # Save to Redis with TTL - ensure exact JSON format
-            json_data = json.dumps(combined_games, separators=(',', ':'))
-            logger.debug(f"Saving to Redis: {json_data}")
-            
-            self.redis_client.set(
-                LIVE_GAMES_KEY,
-                json_data,
-                ex=REDIS_TTL
-            )
-            
-            logger.info(f"Saved {len(new_games)} new games to Redis (total: {len(combined_games)})")
+            logger.info(f"Saved {new_games_count} new games and updated {updated_games_count} existing games in Redis")
             return True
             
         except Exception as e:
@@ -114,17 +124,50 @@ class RedisHandler:
         Get the list of live games from Redis.
         
         Returns:
-            List of live game objects with id, matchType, and timestamp
+            List of live game objects
         """
         try:
-            data_str = self.redis_client.get(LIVE_GAMES_KEY)
-            if data_str:
-                return json.loads(data_str)
+            # Find all game keys using the pattern
+            pattern = f"{LIVE_GAMES_KEY}:*"
+            game_keys = self.redis_client.keys(pattern)
+            
+            if not game_keys:
+                logger.info(f"No live games found in Redis with pattern {pattern}")
+                return []
+            
+            logger.info(f"Found {len(game_keys)} game keys in Redis")
+            
+            # Use pipeline to get all games in one batch for better performance
+            pipe = self.redis_client.pipeline()
+            for key in game_keys:
+                pipe.get(key)
+            
+            # Execute pipeline and process results
+            game_data_list = pipe.execute()
+            active_games = []
+            
+            for i, game_data in enumerate(game_data_list):
+                if game_data:
+                    try:
+                        game = json.loads(game_data)
+                        # Check if game has valid data
+                        if "id" in game:
+                            active_games.append(game)
+                        else:
+                            logger.warning(f"Game missing ID field: {game_keys[i]}")
+                    except json.JSONDecodeError:
+                        logger.warning(f"Invalid JSON in Redis for game key {game_keys[i]}")
+            
+            logger.info(f"Retrieved {len(active_games)} active live games from Redis")
+            return active_games
+            
+        except redis.RedisError as e:
+            logger.error(f"Redis error retrieving live games: {e}")
             return []
         except Exception as e:
             logger.error(f"Error retrieving live games from Redis: {e}")
             return []
-    
+
     def close(self) -> None:
         """Close Redis connection if it exists."""
         if self.redis_client:
